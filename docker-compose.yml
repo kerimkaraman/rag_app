@@ -1,0 +1,60 @@
+services:
+  milvus-standalone:
+    image: milvusdb/milvus:latest
+    container_name: milvus-standalone
+    command: ["milvus", "run", "standalone"]
+    environment:
+      # --- BAŞLANGIÇ --- EKLENEN SATIRLAR
+      # Milvus'a diğer servislerin doğru adreslerini söylüyoruz.
+      ETCD_ENDPOINTS: milvus-etcd:2379
+      MINIO_ADDRESS: milvus-minio:9000
+      # --- SON --- EKLENEN SATIRLAR
+      TZ: "UTC"
+      MILVUS_LOG_LEVEL: debug
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    depends_on:
+      - milvus-etcd
+      - milvus-minio
+    healthcheck:
+      test: ["CMD-SHELL", "echo 'health check placeholder'"]
+      interval: 5s
+      timeout: 2s
+      retries: 12
+
+  milvus-etcd:
+    image: quay.io/coreos/etcd:v3.5.5
+    container_name: milvus-etcd
+    ports:
+      - "2379:2379"
+      - "2380:2380"
+    command: >
+      /usr/local/bin/etcd
+      --name milvus-etcd
+      --listen-client-urls http://0.0.0.0:2379
+      --advertise-client-urls http://0.0.0.0:2379
+      --listen-peer-urls http://0.0.0.0:2380
+      --initial-advertise-peer-urls http://0.0.0.0:2380
+      --initial-cluster milvus-etcd=http://0.0.0.0:2380
+      --initial-cluster-state new
+
+  milvus-minio:
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    container_name: milvus-minio
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    ports:
+      - "9000:9000"
+    command: server /data
+
+
+
+  attu:
+    image: zilliz/attu:latest
+    container_name: attu
+    ports:
+      - "8000:3000"
+    depends_on:
+      - "milvus-standalone"
