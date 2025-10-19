@@ -1,38 +1,38 @@
 # RAG Pipeline (Milvus + SentenceTransformers + LLaMA3)
 
-Bu proje, Python ile Milvus vektör veritabanı ve sentence-transformers tabanlı embedding modelini kullanarak, LLaMA3 (Ollama) ile semantic retrieval-augmented generation uygular.
+This project applies semantic retrieval-augmented generation (RAG) using the Milvus vector database and a sentence-transformers-based embedding model in Python, combined with LLaMA3 (via Ollama).
 
-## Özellikler
-- Milvus'a doğrudan bağlantı (pymilvus)
-- Türkçe yorumlar ve temiz kod
-- Vektör temelli semantic arama (cosine similarity)
-- LLaMA3 ile bağlamı (context) doğrudan kullanıp çıktı üretme
-- Bağımsız çalışabilen örnek script ve fonksiyonlar
+## Features
+- Direct Milvus connection (via pymilvus)
+- Clear and well-commented code
+- Vector-based semantic search (cosine similarity)
+- Context-aware response generation using LLaMA3
+- Standalone sample scripts and functions
 
-## Temel Akış (app/rag_pipeline.py)
+## Basic Flow (see `app/rag_pipeline.py`)
 
-1. **Milvus'a bağlantı kurulur:**
+1. **Connect to Milvus:**
 ```python
 connections.connect("default", host="localhost", port="19530")
 collection = Collection("my_collection")
 ```
 
-2. **Embedding Modeli yüklenir:**
+2. **Load Embedding Model:**
 ```python
 model = SentenceTransformer("all-MiniLM-L6-v2")
 ```
 
-3. **Semantic Query Fonksiyonu:**
+3. **Semantic Query Function:**
 ```python
 def query_milvus_with_cosine(user_query, top_k=2):
-    # Sorguyu embedle
+    # Embed the query
     query_vec = model.encode([user_query])
-    # Milvus'tan tüm embedding ve textleri al
+    # Retrieve all embeddings and texts from Milvus
     results = collection.query(expr="id >= 0", output_fields=["id", "text", "embedding"])
     vectors = np.array([r["embedding"] for r in results])
     texts = [r["text"] for r in results]
     sims = cosine_similarity(query_vec, vectors)[0]
-    # En yakın top_k metni döndür
+    # Return the top_k most similar texts
     top_indices = np.argsort(sims)[::-1][:top_k]
     return [texts[i] for i in top_indices]
 ```
@@ -43,48 +43,48 @@ def rag_pipeline(user_query):
     context_docs = query_milvus_with_cosine(user_query)
     context = "\n".join(context_docs)
     prompt = f"""
-    Sen yardımcı bir yapay zeka asistanısın ve aşağıda sana verilen dökümanlara erişimin var.
-    Buna göre kullanıcının sorusunu cevapla.
-    Dökümanlar: {context}\nKullanıcı Sorusu: {user_query}\nYanıtın:
+    You are an AI assistant and you have access to the documents provided below.
+    Please answer the user's question based on these documents.
+    Documents: {context}\nUser Question: {user_query}\nYour Answer:
     """
     response = chat(model="llama3", messages=[{"role": "user", "content": prompt}])
     return response["message"]["content"]
 ```
 
-5. **Komut Satırı Kullanımı:**
+5. **Command Line Usage:**
 ```python
 if __name__ == "__main__":
-    query = input("Bir soru yazınız: ")
+    query = input("Enter your question: ")
     answer = rag_pipeline(query)
-    print("\nLLaMA3 Cevabı:\n", answer)
+    print("\nLLaMA3 Response:\n", answer)
 ```
 
-## Gereksinimler
+## Requirements
 - Python 3.8+
 - milvus, sentence-transformers, sklearn, ollama
-- Milvus üzerinde "my_collection" isimli koleksiyon oluşturulmuş olmalı ve embeddingler yuklenmiş olmalı
-- LLaMA3 modeli Ollama üzerinden localde çalışıyor olmalı
+- A Milvus collection named "my_collection" should already exist with embedded vectors
+- LLaMA3 model should be running locally via Ollama
 
-## Örnek Çalışma Akışı
+## Example Workflow
 
-1. **Veri ekleyin:**
-- Milvus koleksiyonunu ve embeddingleri oluşturup doldurun (bkz: db/milvus_client.py veya setup scriptleri)
+1. **Add Data:**
+- Set up and populate the Milvus collection with embeddings (see: `db/milvus_client.py` or setup scripts)
 
-2. **Script ile soru-cevap:**
+2. **Script Q&A:**
 ```
-Bir soru yazınız: Milvus nedir?
+Enter your question: What is Milvus?
 
-LLaMA3 Cevabı:
-... (toplanan dökümanlara ve LLaMA3 modeline göre otomatik cevap)
+LLaMA3 Response:
+... (automatic response generated based on retrieved documents and LLaMA3 model)
 ```
 
-## Yapı (Kısa)
+## Structure (Summary)
 ```
 app/
- ├── rag_pipeline.py      # Ana RAG pipeline örneği
- ├── db/milvus_client.py  # Koleksiyon ve ekleme fonksiyonları
- └── ... (diğer modüller)
+ ├── rag_pipeline.py      # Main RAG pipeline example
+ ├── db/milvus_client.py  # Collection and add functions
+ └── ... (other modules)
 ```
 
-## Lisans
+## License
 MIT
