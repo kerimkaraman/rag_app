@@ -3,11 +3,11 @@ from pymilvus import connections, utility, FieldSchema, DataType, Collection, Co
 def connect_to_milvus():
     """Milvus'a bağlanır ve bağlantı durumunu döner."""
     connections.connect(alias="default", host="localhost", port="19530")
-    print("✅ Connected to Milvus")
+    print("Connected to Milvus")
 
 def check_collections():
     """Milvus'ta var olan koleksiyonları listeler."""
-    print("📦 Existing collections:", utility.list_collections())
+    print("Existing collections:", utility.list_collections())
 
 def create_collections():
     """
@@ -32,7 +32,7 @@ def insert_document(content: str, embedding: list[float]):
     """
     collection = Collection("documents")
     collection.insert([ [content], [embedding] ])  # TEK doküman için bu doğru
-    print("✅ Tek döküman kaydedildi")
+    print("Tek döküman kaydedildi")
 
 def insert_documents(contents: list[str], embeddings: list[list[float]]):
     """
@@ -44,4 +44,4 @@ def insert_documents(contents: list[str], embeddings: list[list[float]]):
     # Her alan kendi listesinde olmalı ama listeleri tekrar sarmamıza gerek yok
     collection.insert([contents, embeddings])
     
-    print(f"✅ {len(contents)} döküman kaydedildi")
+    print(f"{len(contents)} döküman kaydedildi")

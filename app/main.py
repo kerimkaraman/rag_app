@@ -8,11 +8,11 @@ import numpy as np
 
 app = FastAPI(title="RAG API", description="RAG Pipeline powered by Milvus + LLaMA3")
 
-# ✅ Milvus bağlantısı
+# Milvus bağlantısı
 connections.connect("default", host="localhost", port="19530")
 collection = Collection("my_collection")
 
-# ✅ Embedding modeli
+# Embedding modeli
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
 class QueryRequest(BaseModel):
