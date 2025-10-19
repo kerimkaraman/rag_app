@@ -1,7 +1,7 @@
 from pymilvus import connections, Collection
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-from ollama import chat  # LLaMA3’ü localden çağıracağız
+from ollama import chat  # LLaMA3’ü lokalde çağıracağız
 import numpy as np
 
 # 1. Milvus bağlantısı
@@ -13,21 +13,21 @@ model = SentenceTransformer("all-MiniLM-L6-v2")
 
 def query_milvus_with_cosine(user_query, top_k=2):
     """
-    Kullanıcının sorusunu embed edip Milvus'taki vektörlerle cosine similarity'e göre karşılaştırır.
+    Kullanıcıdan gelen soruyu embed edip Milvus'taki vektörlerle cosine similarity kullanarak karşılaştırır.
     """
-    # Query’yi embedle
+    # Sorguyu embedle
     query_vec = model.encode([user_query])
-    # Milvus'taki tüm embedding’leri ve metadata’yı al
+    # Milvus'tan tüm embedding ve meta veriyi al
     results = collection.query(
         expr="id >= 0",
         output_fields=["id", "text", "embedding"]
     )
-    # Embedding’leri numpy array’e dönüştür
+    # Embedding'leri numpy array'e dönüştür
     vectors = np.array([r["embedding"] for r in results])
     texts = [r["text"] for r in results]
-    # Cosine benzerliğini hesapla
+    # Cosine benzerliği hesapla
     sims = cosine_similarity(query_vec, vectors)[0]
-    # En benzer top_k dokümanı seç
+    # En ilgili top_k dökümanı sırala
     top_indices = np.argsort(sims)[::-1][:top_k]
     top_texts = [texts[i] for i in top_indices]
     return top_texts
@@ -35,30 +35,29 @@ def query_milvus_with_cosine(user_query, top_k=2):
 
 def rag_pipeline(user_query):
     """
-    RAG zinciri:
-    1. Milvus'tan ilgili dokümanları alır
-    2. Dokümanları birleştirip LLaMA3'e bağlam olarak yollar
-    3. Nihai cevabı üretir
+    RAG mantığı:
+    1. Milvus'tan alakalı dökümanları bulur
+    2. Dökümanları prompta ekler
+    3. LLaMA3 ile bağlamlı cevap üretir
     """
     context_docs = query_milvus_with_cosine(user_query)
     context = "\n".join(context_docs)
     prompt = f"""
-You are a helpful AI assistant with access to retrieved context documents.
-Use the information below to answer the user's question accurately.
+Sen yardımcı bir yapay zeka asistanısın ve aşağıda sana verilen dökümanlara erişimin var.
+Buna göre kullanıcının sorusunu cevapla.
 
-Context:
+Dökümanlar:
 {context}
 
-User Question: {user_query}
+Kullanıcı Sorusu: {user_query}
 
-Answer:
+Yanıtın:
 """
-    # LLaMA3 ile yanıt üretimi (local)
+    # LLaMA3 ile yanıt oluşturuluyor
     response = chat(model="llama3", messages=[{"role": "user", "content": prompt}])
     return response["message"]["content"]
 
-
 if __name__ == "__main__":
-    query = input("Ask something: ")
+    query = input("Bir soru yazınız: ")
     answer = rag_pipeline(query)
-    print("\nLLaMA3 Response:\n", answer)
+    print("\nLLaMA3 Cevabı:\n", answer)

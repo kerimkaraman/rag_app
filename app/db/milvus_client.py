@@ -1,47 +1,42 @@
 from pymilvus import connections, utility, FieldSchema, DataType, Collection, CollectionSchema
 
 def connect_to_milvus():
-    """Milvus'a bağlanır ve bağlantı durumunu döner."""
+    """Milvus'a bağlanır ve bağlantı başarılıysa uyarı verir."""
     connections.connect(alias="default", host="localhost", port="19530")
-    print("Connected to Milvus")
+    print("Milvus'a bağlantı başarılı.")
 
 def check_collections():
-    """Milvus'ta var olan koleksiyonları listeler."""
-    print("Existing collections:", utility.list_collections())
+    """Milvus'taki mevcut koleksiyonları listeler."""
+    print("Mevcut koleksiyonlar:", utility.list_collections())
 
 def create_collections():
     """
-    'documents' adlı bir koleksiyon oluşturur.
-    - id: her dokümanın benzersiz numarası
-    - content: dokümanın metni
-    - embedding: dokümanın vektör embedding'i (float list)
+    'documents' adında bir koleksiyon oluşturur.
+    - id: benzersiz döküman numarası
+    - content: dökümanın metni
+    - embedding: dökümanın vektör embedding'i (float listesidir)
     """
     fields = [
         FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),
         FieldSchema(name="content", dtype=DataType.VARCHAR, max_length=500),
-        FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=384)  # örnek dim
+        FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=384)
     ]
-
-    schema = CollectionSchema(fields, description="RAG Documents Collection")
+    schema = CollectionSchema(fields, description="RAG Dökümanlar Koleksiyonu")
     Collection(name="documents", schema=schema)
-    print("✅ 'documents' koleksiyonu oluşturuldu")
+    print("'documents' koleksiyonu başarıyla oluşturuldu.")
 
 def insert_document(content: str, embedding: list[float]):
     """
-    TEK döküman ekleme
+    Tek doküman ekleme işlevi
     """
     collection = Collection("documents")
-    collection.insert([ [content], [embedding] ])  # TEK doküman için bu doğru
-    print("Tek döküman kaydedildi")
+    collection.insert([[content], [embedding]])
+    print("Tek döküman kaydedildi.")
 
 def insert_documents(contents: list[str], embeddings: list[list[float]]):
     """
-    Birden fazla döküman ekleme
+    Çoklu döküman ekleme işlemi
     """
     collection = Collection("documents")
-    
-    # İç içe liste hatasını düzeltmek için:
-    # Her alan kendi listesinde olmalı ama listeleri tekrar sarmamıza gerek yok
     collection.insert([contents, embeddings])
-    
-    print(f"{len(contents)} döküman kaydedildi")
+    print(f"{len(contents)} döküman kaydedildi.")
