@@ -1,85 +1,90 @@
-# AI RAG API (FastAPI + Milvus + LLaMA3)
+# RAG Pipeline (Milvus + SentenceTransformers + LLaMA3)
 
-A ready-to-extend Retrieval-Augmented Generation (RAG) API using FastAPI, Milvus for vector storage, SentenceTransformers for embeddings, and LLaMA3 (via Ollama) for querying.
+Bu proje, Python ile Milvus vektör veritabanı ve sentence-transformers tabanlı embedding modelini kullanarak, LLaMA3 (Ollama) ile semantic retrieval-augmented generation uygular.
 
-## Features
+## Özellikler
+- Milvus'a doğrudan bağlantı (pymilvus)
+- Türkçe yorumlar ve temiz kod
+- Vektör temelli semantic arama (cosine similarity)
+- LLaMA3 ile bağlamı (context) doğrudan kullanıp çıktı üretme
+- Bağımsız çalışabilen örnek script ve fonksiyonlar
 
-- FastAPI backend with modern endpoint structure
-- Document embedding (with SentenceTransformers, easily extendable)
-- Milvus vector database integration for fast dense search
-- RAG pipeline for semantic document retrieval and chat
-- Modular architecture (`routers`, `db`, `models`, `utils`)
-- Example endpoints for chat and batch document additions
+## Temel Akış (app/rag_pipeline.py)
 
-## Endpoints
-
-- `POST /query` — Asks a question, retrieves answer using RAG (Milvus+LLaMA3)
-- `POST /chat` — (Sample) Receives a message and returns a fake reply (for demo)
-- `POST /add_documents` — Batch document upload + auto-embedding
-
-## Example Request
-
-### Ask a Question
-
-```
-POST /query
-{
-  "question": "What is retrieval-augmented generation?"
-}
+1. **Milvus'a bağlantı kurulur:**
+```python
+connections.connect("default", host="localhost", port="19530")
+collection = Collection("my_collection")
 ```
 
-### Add Documents
-
-```
-POST /add_documents
-{
-  "texts": ["Document one.", "Document two."]
-}
+2. **Embedding Modeli yüklenir:**
+```python
+model = SentenceTransformer("all-MiniLM-L6-v2")
 ```
 
-## Installation
+3. **Semantic Query Fonksiyonu:**
+```python
+def query_milvus_with_cosine(user_query, top_k=2):
+    # Sorguyu embedle
+    query_vec = model.encode([user_query])
+    # Milvus'tan tüm embedding ve textleri al
+    results = collection.query(expr="id >= 0", output_fields=["id", "text", "embedding"])
+    vectors = np.array([r["embedding"] for r in results])
+    texts = [r["text"] for r in results]
+    sims = cosine_similarity(query_vec, vectors)[0]
+    # En yakın top_k metni döndür
+    top_indices = np.argsort(sims)[::-1][:top_k]
+    return [texts[i] for i in top_indices]
+```
 
-1. **Clone this repository:**
-   ```
-   git clone https://github.com/your-repo/rag_app.git
-   cd rag_app
-   ```
+4. **RAG Pipeline:**
+```python
+def rag_pipeline(user_query):
+    context_docs = query_milvus_with_cosine(user_query)
+    context = "\n".join(context_docs)
+    prompt = f"""
+    Sen yardımcı bir yapay zeka asistanısın ve aşağıda sana verilen dökümanlara erişimin var.
+    Buna göre kullanıcının sorusunu cevapla.
+    Dökümanlar: {context}\nKullanıcı Sorusu: {user_query}\nYanıtın:
+    """
+    response = chat(model="llama3", messages=[{"role": "user", "content": prompt}])
+    return response["message"]["content"]
+```
 
-2. **Install dependencies:**
-   ```
-   pip install -r requirements.txt
-   ```
+5. **Komut Satırı Kullanımı:**
+```python
+if __name__ == "__main__":
+    query = input("Bir soru yazınız: ")
+    answer = rag_pipeline(query)
+    print("\nLLaMA3 Cevabı:\n", answer)
+```
 
-3. **Ensure Milvus is running:**  
-   (Default: `localhost:19530`)
+## Gereksinimler
+- Python 3.8+
+- milvus, sentence-transformers, sklearn, ollama
+- Milvus üzerinde "my_collection" isimli koleksiyon oluşturulmuş olmalı ve embeddingler yuklenmiş olmalı
+- LLaMA3 modeli Ollama üzerinden localde çalışıyor olmalı
 
-4. **Run your API:**
-   ```
-   uvicorn app.main:app --reload
-   ```
+## Örnek Çalışma Akışı
 
-## Project Structure
+1. **Veri ekleyin:**
+- Milvus koleksiyonunu ve embeddingleri oluşturup doldurun (bkz: db/milvus_client.py veya setup scriptleri)
 
+2. **Script ile soru-cevap:**
+```
+Bir soru yazınız: Milvus nedir?
+
+LLaMA3 Cevabı:
+... (toplanan dökümanlara ve LLaMA3 modeline göre otomatik cevap)
+```
+
+## Yapı (Kısa)
 ```
 app/
- ├── main.py           # FastAPI entry, includes router
- ├── routers/
- │     └── chat.py     # Chat and document upload endpoints
- ├── db/
- │     └── milvus_client.py   # Milvus connection & bulk/insert helpers
- ├── utils/
- │     └── embedder.py # SentenceTransformer wrapper
- ├── models/
- │     └── schemas.py  # Request/response models
- └── rag_pipeline.py   # RAG core logic
+ ├── rag_pipeline.py      # Ana RAG pipeline örneği
+ ├── db/milvus_client.py  # Koleksiyon ve ekleme fonksiyonları
+ └── ... (diğer modüller)
 ```
 
-## Notes
-
-- Collection is named `documents` and expects fields for content, id, and embedding.
-- Embeddings default to `all-MiniLM-L6-v2` model.
-- Example Turkish docstrings, suitable for local/testing use.
-
-## License
-
+## Lisans
 MIT
